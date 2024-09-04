@@ -238,7 +238,7 @@ bot.hears('Отправка из Грузии', async (ctx) => {
 
 bot.callbackQuery('documentsFromGeorgia', async (ctx) => {
 
-    const text = `<strong>Отправка документов из Грузии.</strong>\n\nДокументы не требуют какого-то особого таможенного оформления.\nПросто сайте их в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\n<strong>Запрещено отправлять:</strong> удостоверения личности, ценные бумаги, деньги.\n<strong>Недопустимо</strong> прикладывать к документам что то дополнительно (сувениры, ключи, фотографии и т.д.).\n\n- заключить договор`;
+    const text = `<strong>Отправка документов из Грузии.</strong>\n\nДокументы не требуют какого-то особого таможенного оформления.\nПросто сайте их в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\n<strong>Запрещено отправлять:</strong> удостоверения личности, ценные бумаги, деньги.\n<strong>Недопустимо</strong> прикладывать к документам что то дополнительно (сувениры, ключи, фотографии и т.д.).`;
 
     const keyboard = new InlineKeyboard()
         .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
