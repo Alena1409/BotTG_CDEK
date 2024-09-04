@@ -1,648 +1,412 @@
-require('dotenv').config()
-const Bot = require('node-telegram-bot-api');
+const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, InputFile } = require('grammy');
+require('dotenv').config();
+const fs = require('fs');
+
+// Инициализируем бота с токеном из переменных окружения
+const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
+
+//СОЗДАЛИ МЕНЮ С КОМАНДАМИ В БОТЕ
+bot.api.setMyCommands([
+    {command: 'start', description: 'Запустить бота'},
+]);
+
+const managerChatId = '835352092'; //  managers id
+
+// Фразы, которые будут "ловиться" ботом
+const triggerPhrases = [
+    'помощь',
+    'срочно',
+    'важно',
+];
 
 
+// Определяем обработчик команды /start
+bot.command('start', async ctx => {
 
-console.log("Bot has been started .... ")
+    const userId = ctx.from.id;
+    const userName = ctx.from.first_name;
+    const welcomeMessage = `Приветствую, ${userName}!\n\nЯ помогу тебе ответить на вопросы или свяжу с менеджером.\n\nВыбери интересующий вариант доставки:`;
+    const photoUrl = './image.png'; // Замените на реальный URL
+
+    // Создаем клавиатуру
+    const startKeyboard = new Keyboard()
+        .text('Доставка внутри Грузии').row()
+        .text('Отправка в Грузию').row()
+        .text('Отправка из Грузии').row()
+        .text('Написать менеджеру').text('Адрес пункта на карте')
 
 
-const bot = new Bot(process.env.KEY_TG, {
-    polling: {
-        interval: 300,
-        autoStart: true,
-        params: {
-            timeout: 10
-        }
+    try {
+        await ctx.replyWithPhoto(new InputFile(photoUrl));
+        await ctx.reply(welcomeMessage, {
+            reply_markup: startKeyboard
+        });
+    } catch (error) {
+        console.error('Error sending location:', error);
     }
-    // настроили в этом блоке работу с верверной частью
+
+    fs.readFile('usome.txt', 'utf-8', (err, data) => {
+        fs.writeFile('usome.txt', data + '\n' + [ctx.message.from.id, ctx.message.from.first_name, ctx.message.from.username], (err, data) => {
+            console.log('good');
+        }); //записать в файл
+    });
+
+});
+bot.hears('Доставка внутри Грузии', async (ctx) => {
+    const text = '<b>Доставка внутри Грузии.</b>\n\nСтоимость отправки: 4 лари первый кг, далее 2 лари/кг.\n\nАдрес приема: Батуми, Канделаки, 2 (рядом с канатной дорогой)\n\nТелефон: +995555385982';
+
+    const keyboard = new InlineKeyboard().url('Расчет стоимости доставки', 'https://cdek.ge/ru/cabinet/calculate/').row().url('Написать менеджеру', 'https://t.me/Cdek_batumi')
+
+    try {
+        await ctx.reply(text,
+            {
+                reply_markup: keyboard,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true
+            }
+        );
+    } catch (error) {
+        console.error('Error sending location:', error);
+    }
+})
+
+bot.hears('Отправка в Грузию', async (ctx) => {
+    const text = 'Что необходимо отправить в Грузию?';
+
+    const keyboard = new InlineKeyboard()
+        .text('Документы', 'documentsToGeorgia').row()
+        .text('Посылка', 'parselsToGeorgia')
+
+        try {
+            await ctx.reply(text,
+                {
+                    reply_markup: keyboard,
+                    parse_mode: 'HTML',
+                    disable_web_page_preview: true
+                }
+            );
+        } catch (error) {
+            console.error('Error sending location:', error);
+        }
+})
+
+bot.callbackQuery('documentsToGeorgia', async (ctx) => {
+
+    const text = `<strong>Отправка документов в Грузию.</strong>\n\nДокументы не требуют какого-то особого таможенного оформления.\nПросто сайте их в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>\n\n<strong>Запрещено отправлять:</strong> удостоверения личности, ценные бумаги, деньги.\n<strong>Недопустимо</strong> прикладывать к документам что-то дополнительно (сувениры, ключи, фотографии и т.д.).`
+
+    const keyboard = new InlineKeyboard()
+        .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+        .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+        .text('Назад', 'backToGeorgia');
+
+
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+    });
+
+})
+
+bot.callbackQuery('parselsToGeorgia', async (ctx) => {
+
+    const text = 'Вы выбрали отправку посылки в Грузию. Выберите тип отправления:';
+
+    const keyboard = new InlineKeyboard()
+        .text('Личное отправление', 'personalToGeorgia').row()
+        .text('Интернет магазин', 'onlineStoreToGeorgia').row()
+        .text('Коммерческая отправка', 'commercialToGeorgia').row()
+        .text('Назад', 'backToGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+bot.callbackQuery('personalToGeorgia', async (ctx) => {
+
+    const text = `<strong>Отправка личный вещей в Грузию.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nОформляется на русском и английском языке, все поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>`
+
+    const keyboard = new InlineKeyboard()
+        .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+        .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+        .text('Назад', 'backParselsToGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+bot.callbackQuery('onlineStoreToGeorgia', async (ctx) => {
+
+    const text =  `<strong>Отправка в Грузию для Интернет Магазинов.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nОформляется на русском и английском языке, все поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\n<b>Обязательное требование</b> - наличие сайта с размещенными на нем отправляемыми товарами.\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>`;
+
+    const keyboard = new InlineKeyboard()
+    .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+    .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+    .text('Назад', 'backParselsToGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+bot.callbackQuery('commercialToGeorgia', async (ctx) => {
+
+    const text = `<strong>Отправка в Грузию коммерческого груза.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nОформляется на русском и английском языке, все поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>`;
+
+    const keyboard = new InlineKeyboard()
+        .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+        .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+        .text('Назад', 'backParselsToGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+// Обработчик кнопки "Назад отправка в Грузию" из различных состояний
+bot.callbackQuery('backToGeorgia', async (ctx) => {
+    const text = 'Что необходимо отправить в Грузию?';
+
+    const keyboard = new InlineKeyboard()
+        .text('Документы', 'documentsToGeorgia')
+        .row()
+        .text('Посылка', 'parselsToGeorgia');
+
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+    });
 });
 
+bot.callbackQuery('backParselsToGeorgia', async (ctx) => {
+    const text = 'Вы выбрали отправку посылки в Грузию. Выберите тип отправления:';
 
-bot.onText(/\/start/, (msg) => {
-    const id = msg.chat.id
+    const keyboard = new InlineKeyboard()
+        .text('Личное отправление', 'personalToGeorgia').row()
+        .text('Интернет магазин', 'onlineStoreToGeorgia').row()
+        .text('Коммерческая отправка', 'commercialToGeorgia').row()
+        .text('Назад', 'backToGeorgia');
 
-    bot.sendPhoto(id, './img/start.jpg', {
-        caption: 'Выбери нужный вариант доставки:'
-    })
-    const html = `
-    <strong>Приветствую, ${msg.from.first_name}!</strong>
-    \nЯ помогу тебе ответить на вопросы или свяжу с менеджером!
-    `
-
-    bot.sendMessage(id, html, {
-        reply_markup: {
-            keyboard: [
-                ['Доставка внутри Грузии'],
-                ['Отправка в Грузию'],
-                ['Отправка из Грузии'],
-                ['Написать менеджеру', 'Адрес пункта на карте'],
-            ],
-            //one_time_keyboard: true // скроет клавиатуру сразу после нажатия кнопки
-        },
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(text, {
+        reply_markup: keyboard,
         parse_mode: 'HTML',
-        disable_notification: true
-    });
-})
-
-bot.on('message', (msg) => {
-
-    const id = msg.chat.id
-
-    if (msg.text === 'Доставка внутри Грузии') {
-
-        bot.sendMessage(id, 'Доставка внутри Грузии.\n\nСтоимость отправки: 4 лари первый кг, далее 2 лари/кг.\n\nАдрес приема: Батуми, Канделаки, 2 (рядом с канатной дорогой)\n\nТелефон: +995555385982', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Расчет стоимости доставки.',
-                            url: 'https://cdek.ge/ru/cabinet/calculate/'
-                        }
-                    ],
-                    [
-                        {
-                            text: 'Написать менеджеру.',
-                            url: 't.me/Cdek_batumi'
-                        }
-                    ],
-                ]
-            }
-        })
-
-    } else if (msg.text === 'Отправка в Грузию') {
-
-        bot.sendMessage(id, 'Что необходимо отправить в Грузию?', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Документы',
-                            callback_data: 'documentsToGeorgia'
-                        }
-                    ],
-                    [
-                        {
-                            text: 'Посылка',
-                            callback_data: 'parselsToGeorgia'
-                        }
-                    ],
-                ]
-            }
-        })
-
-    } else if (msg.text == "Отправка из Грузии") {
-
-        const htmlParsels = `<b>Посылку</b> можно отправить в Россию, Беларусь, Армению, Казахстан, Молдову, Азербайджан, Индию, Грецию.`
-        const htmlDocuments = `<b>Документы</b> можно отправить в Россию, Беларусь, Армению, Казахстан, Киргизию, Молдову, Азербайджан, Узбекистан, Индию, Грецию.`
-
-        bot.sendMessage(id, `<strong>Отправка из Грузии.</strong>\n\n${htmlParsels}\n\n${htmlDocuments}\n\nБатуми, Канделаки, 2 +995555385982`, {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Хочу отправить посылку',
-                            callback_data: 'parselsFromGeorgia'
-                        }
-                    ],
-                    [
-                        {
-                            text: 'Хочу отправить документы',
-                            callback_data: 'documentsFromGeorgia'
-                        }
-                    ],
-
-                ]
-            },
-            parse_mode: 'HTML'
-        })
-
-    } else if (msg.text === 'Написать менеджеру') {
-
-        const html = `<a href="t.me/Cdek_batumi">Перейти в чат с менеджером ... </a>`
-
-        bot.sendMessage(id, html, {
-            parse_mode: 'HTML',
-            disable_notification: true // сообщение приходит без оповещения
-        });
-        bot.sendContact(id, '+995555385982', 'Менеджер пункта')
-    } else if (msg.text === 'Адрес пункта на карте') {
-
-        bot.sendLocation(id, 41.64630384415994, 41.64648283852216)
-
-    } else {
-        // bot.sendMessage(id, 'Думаю, что ответить...')
-
-    }
-})
-
-
-// ToGeorgia
-bot.on('callback_query', (query) => {
-
-    switch (query.data) {
-
-        case 'parselsToGeorgia':
-
-            bot.sendMessage(query.message.chat.id, 'Выбери тип посылки для отправки в Грузию:', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Личное отправление',
-                                callback_data: 'ownToGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Интернет Магазин',
-                                callback_data: 'imToGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Коммерческая отправка',
-                                callback_data: 'comToGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editToGeorgia'
-                            }
-                        ],
-                    ]
-                }
-            })
-            break;
-
-        case 'documentsToGeorgia':
-
-            const htmlDocumentsToGeorgia = `<strong>Отправка документов в Грузию.</strong>\n\nДокументы не требуют какого-то особого таможенного оформления.\nПросто сайте их в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>\n\n<strong>Запрещено отправлять:</strong> удостоверения личности, ценные бумаги, деньги.\n <strong>Недопустимо</strong> прикладывать к документам что то дополнительно (сувениры, ключи, фотографии и т.д.).`
-
-            bot.sendMessage(query.message.chat.id, htmlDocumentsToGeorgia, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Расчет стоимости доставки.',
-                                url: 'https://cdek.ge/ru/cabinet/calculate/'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Написать менеджеру',
-                                url: 't.me/Cdek_batumi'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editToGeorgia'
-                            }
-                        ],
-                    ]
-                },
-                parse_mode: 'HTML',
-            })
-            break;
-    }
-})
-
-//to Georgia parsels
-bot.on('callback_query', (query) => {
-    
-    const {chat, message_id, text} = query.message
-
-    switch (query.data) {
-
-        
-
-        case 'ownToGeorgia':
-
-            const htmlownToGeorgia = `<strong>Отправка личный вещей в Грузию.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nОформляется на русском и английском языке, все поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>`
-
-            bot.sendMessage(chat.id, htmlownToGeorgia, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Расчет стоимости доставки.',
-                                url: 'https://cdek.ge/ru/cabinet/calculate/'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Написать менеджеру',
-                                url: 't.me/Cdek_batumi'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editParselsToGeorgia'
-                            }
-                        ],
-                    ]
-                },
-                parse_mode: 'HTML',
-            })
-            break;
-
-        case 'imToGeorgia':
-
-            const htmlimToGeorgia = `<strong>Отправка в Грузию для Интернет Магазинов.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nОформляется на русском и английском языке, все поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\n<b>Обязательное требование</b> - наличие сайта с размещенными на нем отправляемыми товарами.\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>`
-
-            bot.sendMessage(chat.id, htmlimToGeorgia, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Расчет стоимости доставки.',
-                                url: 'https://cdek.ge/ru/cabinet/calculate/'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Написать менеджеру',
-                                url: 't.me/Cdek_batumi'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editParselsToGeorgia'
-                            }
-                        ],
-                    ]
-                },
-                parse_mode: 'HTML',
-            })
-        break;
-
-        case 'comToGeorgia':
-
-        const htmlToGeorgia = `<strong>Отправка в Грузию коммерческого груза.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nОформляется на русском и английском языке, все поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории России.</a>`
-
-        bot.sendMessage(chat.id, htmlToGeorgia, {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Расчет стоимости доставки.',
-                            url: 'https://cdek.ge/ru/cabinet/calculate/'
-                        }
-                    ],
-                    [
-                        {
-                            text: 'Написать менеджеру',
-                            url: 't.me/Cdek_batumi'
-                        }
-                    ],
-                    [
-                        {
-                            text: 'Назад',
-                            callback_data: 'editParselsToGeorgia'
-                        }
-                    ],
-                ]
-            },
-            parse_mode: 'HTML',
-        })
-        break;
-
-        case 'editToGeorgia':
-
-            bot.editMessageText('Что необходимо отправить в Грузию?', {
-                chat_id: chat.id,
-                message_id: message_id,
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Документы',
-                                callback_data: 'documentsToGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Посылка',
-                                callback_data: 'parselsToGeorgia'
-                            }
-                        ],
-                    ]
-                }
-            })
-        break;
-           
-    }
-})
-
-bot.on('callback_query', (query) => {
-    const {chat, message_id, text} = query.message
-
-    switch(query.data) {
-        case 'editParselsToGeorgia' :
-
-            bot.editMessageText('Выбери тип посылки для отправки в Грузию:', {
-                chat_id: chat.id,
-                message_id: message_id,
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Личное отправление',
-                                callback_data: 'ownToGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Интернет Магазин',
-                                callback_data: 'imToGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Коммерческая отправка',
-                                callback_data: 'comToGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editToGeorgia'
-                            }
-                        ],
-                    ]
-                }
-            })
-        break;
-    }
-
-})
-
-//fromGeorgia
-bot.on('callback_query', (query) => {
-
-    const {chat, message_id, text} = query.message
-
-    switch (query.data) {
-
-        case 'parselsFromGeorgia':
-
-            bot.sendMessage(chat.id, 'Выбери тип посылки для отправки из Грузии:', {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Личное отправление',
-                                callback_data: 'ownFromGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Интернет Магазин',
-                                callback_data: 'imFromGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Коммерческая отправка',
-                                callback_data: 'comFromGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editFromGeorgia'
-                            }
-                        ],
-                    ]
-                }
-            })
-            break;
-
-        case 'documentsFromGeorgia':
-
-            const htmlDocumentsFromGeorgia = `<strong>Отправка документов из Грузии.</strong>\n\nДокументы не требуют какого-то особого таможенного оформления.\nПросто сайте их в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\n<strong>Запрещено отправлять:</strong> удостоверения личности, ценные бумаги, деньги.\n<strong>Недопустимо</strong> прикладывать к документам что то дополнительно (сувениры, ключи, фотографии и т.д.).\n\n- заключить договор`
-
-            bot.sendMessage(chat.id, htmlDocumentsFromGeorgia, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Расчет стоимости доставки.',
-                                url: 'https://cdek.ge/ru/cabinet/calculate/'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Написать менеджеру',
-                                url: 't.me/Cdek_batumi'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editFromGeorgia'
-                            }
-                        ],
-                    ]
-                },
-                parse_mode: 'HTML',
-            })
-            break;
-    }
-})
-
-//from Georgia parsels
-bot.on('callback_query', (query) => {
-
-    const {chat, message_id, text} = query.message
-
-    switch (query.data) {
-
-        case 'ownFromGeorgia':
-
-            const htmlownFromGeorgia = `<strong>Отправка личных вещей из Грузии.</strong>\n\nCдать посылку можно в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\nОфис в Батуми, Канделаки 2 (около канатной дороги АРГО)`
-
-            bot.sendMessage(chat.id, htmlownFromGeorgia, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Расчет стоимости доставки.',
-                                url: 'https://cdek.ge/ru/cabinet/calculate/'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Написать менеджеру',
-                                url: 't.me/Cdek_batumi'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editParselsFromGeorgia'
-                            }
-                        ],
-                    ]
-                },
-                parse_mode: 'HTML',
-            })
-            break;
-
-        case 'imFromGeorgia':
-
-            const htmlimFromGeorgia = `<strong>Отправка из Грузии для Интернет Магазинов.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nВсе поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\n<b>Обязательное требование</b> - наличие сайта с размещенными на нем отправляемыми товарами.\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a> \n\nОфис в Батуми, Канделаки 2 (около канатной дороги АРГО)`
-
-            bot.sendMessage(chat.id, htmlimFromGeorgia, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Расчет стоимости доставки.',
-                                url: 'https://cdek.ge/ru/cabinet/calculate/'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Написать менеджеру',
-                                url: 't.me/Cdek_batumi'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editParselsFromGeorgia'
-                            }
-                        ],
-                    ]
-                },
-                parse_mode: 'HTML',
-            })
-        break;
-
-        case 'comFromGeorgia':
-
-        const htmlFromGeorgia = `<strong>Отправка коммерческого груза из Грузии.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nВсе поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\nОфис в Батуми, Канделаки 2 (около канатной дороги АРГО)`
-
-        bot.sendMessage(chat.id, htmlFromGeorgia, {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Расчет стоимости доставки.',
-                            url: 'https://cdek.ge/ru/cabinet/calculate/'
-                        }
-                    ],
-                    [
-                        {
-                            text: 'Написать менеджеру',
-                            url: 't.me/Cdek_batumi'
-                        }
-                    ],
-                    [
-                        {
-                            text: 'Назад',
-                            callback_data: 'editParselsFromGeorgia'
-                        }
-                    ],
-                ]
-            },
-            parse_mode: 'HTML',
-        })
-        break;
-
-        case 'editFromGeorgia':
-
-            const htmlParsels = `<strong>Посылку</strong> можно отправить в Россию, Беларусь, Армению, Казахстан, Молдову, Азербайджан, Индию, Грецию.`
-            const htmlDocuments = `<strong>Документы</strong> можно отправить в Россию, Беларусь, Армению, Казахстан, Киргизию, Молдову, Азербайджан, Узбекистан, Индию, Грецию.`
-
-            bot.editMessageText(`<strong>Отправка из Грузии.</strong>\n\n${htmlParsels}\n\n${htmlDocuments}\n\nБатуми, Канделаки, 2 +995555385982`, {
-                chat_id: chat.id,
-                message_id: message_id,
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Хочу отправить посылку',
-                                callback_data: 'parselsFromGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Хочу отправить документы',
-                                callback_data: 'documentsFromGeorgia'
-                            }
-                        ],
-
-                    ]
-                },
-                parse_mode: 'HTML'
-            })
-        break;
-    }
-})
-
-bot.on('callback_query', (query) => {
-    const {chat, message_id, text} = query.message
-
-    switch(query.data) {
-        case 'editParselsFromGeorgia' :
-
-            bot.editMessageText('Выбери тип посылки для отправки из Грузии:', {
-                chat_id: chat.id,
-                message_id: message_id,
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            {
-                                text: 'Личное отправление',
-                                callback_data: 'ownFromGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Интернет Магазин',
-                                callback_data: 'imFromGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Коммерческая отправка',
-                                callback_data: 'comFromGeorgia'
-                            }
-                        ],
-                        [
-                            {
-                                text: 'Назад',
-                                callback_data: 'editFromGeorgia'
-                            }
-                        ],
-                    ]
-                }
-            })
-        break;
-    }
-
-})
-
-
-/* 
-bot.on('message', (msg) => {
-    const { id } = msg.chat
-
-    setTimeout(() => {
-        bot.sendMessage(id, 'https://www.youtube.com/watch?v=sCE9CpJLpo8&list=PLhgRAQ8BwWFaxlkNNtO0NDPmaVO9txRg8&index=12', {
-                disable_web_page_preview: true,
-                disable_notification: true,
-            })
-    }, 4000)
-
-    bot.sendMessage(id, 'https://www.youtube.com/watch?v=sCE9CpJLpo8&list=PLhgRAQ8BwWFaxlkNNtO0NDPmaVO9txRg8&index=12', {
         disable_web_page_preview: true
-    })
+    });
+});
 
-*/
+bot.hears('Отправка из Грузии', async (ctx) => {
+    const text = `<strong>Отправка из Грузии.</strong>\n\n<b>Посылку</b> можно отправить в Россию, Беларусь, Армению, Казахстан, Молдову, Азербайджан, Индию, Грецию.\n\n<b>Документы</b> можно отправить в Россию, Беларусь, Армению, Казахстан, Киргизию, Молдову, Азербайджан, Узбекистан, Индию, Грецию.\n\n\Батуми, Канделаки, 2 +995555385982`
 
+    const keyboard = new InlineKeyboard()
+        .text('Документы', 'documentsFromGeorgia').row()
+        .text('Посылка', 'parselsFromGeorgia')
+
+    try {
+        await ctx.reply(text,
+            {
+                reply_markup: keyboard,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true
+            }
+        );
+    } catch (error) {
+        console.error('Error sending location:', error);
+    }
+})
+
+bot.callbackQuery('documentsFromGeorgia', async (ctx) => {
+
+    const text = `<strong>Отправка документов из Грузии.</strong>\n\nДокументы не требуют какого-то особого таможенного оформления.\nПросто сайте их в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\n<strong>Запрещено отправлять:</strong> удостоверения личности, ценные бумаги, деньги.\n<strong>Недопустимо</strong> прикладывать к документам что то дополнительно (сувениры, ключи, фотографии и т.д.).\n\n- заключить договор`;
+
+    const keyboard = new InlineKeyboard()
+        .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+        .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+        .text('Назад', 'backFromGeorgia');
+
+
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+    });
+
+})
+
+bot.callbackQuery('parselsFromGeorgia', async (ctx) => {
+
+    const text = 'Вы выбрали отправку посылки из Грузии. Выберите тип отправления:';
+
+    const keyboard = new InlineKeyboard()
+        .text('Личное отправление', 'personalFromGeorgia').row()
+        .text('Интернет магазин', 'onlineStoreFromGeorgia').row()
+        .text('Коммерческая отправка', 'commercialFromGeorgia').row()
+        .text('Назад', 'backFromGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+bot.callbackQuery('personalFromGeorgia', async (ctx) => {
+
+    const text =  `<strong>Отправка личных вещей из Грузии.</strong>\n\nCдать посылку можно в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\nОфис в Батуми, Канделаки 2 (около канатной дороги АРГО)`;
+
+    const keyboard = new InlineKeyboard()
+        .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+        .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+        .text('Назад', 'backParselsFromGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+bot.callbackQuery('onlineStoreFromGeorgia', async (ctx) => {
+
+    const text =  `<strong>Отправка из Грузии для Интернет Магазинов.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nВсе поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\n<b>Обязательное требование</b> - наличие сайта с размещенными на нем отправляемыми товарами.\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a> \n\nОфис в Батуми, Канделаки 2 (около канатной дороги АРГО)`;
+
+    const keyboard = new InlineKeyboard()
+    .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+    .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+    .text('Назад', 'backParselsFromGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+bot.callbackQuery('commercialFromGeorgia', async (ctx) => {
+
+    const text = `<strong>Отправка коммерческого груза из Грузии.</strong>\n\n<a href="#">Oформить инвойс</a>.\n\nВсе поля обязательны для заполнения.\n\nКаждая единица вложения описывается отдельно с указанием материала, бренда, новые или было в употреблении, цены.\n\nПример: кроссовки Адидас, синтетика, Б/У, 100 долларов.\nИспользование общих формулировок, например: личные вещи – <b>недопустимо.</b>\n\nCдавать посылку и инвойс в любой <a href="https://www.cdek.ru/ru/offices/?utm_referrer=https%3A%2F%2Fyandex.ru%2F">офис СДЭК на территории Грузии.</a>\n\nОфис в Батуми, Канделаки 2 (около канатной дороги АРГО)`;
+
+    const keyboard = new InlineKeyboard()
+        .url('Расчет стоимости доставки.', 'https://cdek.ge/ru/cabinet/calculate/').row()
+        .url('Написать менеджеру', 'https://t.me/Cdek_batumi').row()
+        .text('Назад', 'backParselsFromGeorgia');
+
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(text, {
+            reply_markup: keyboard,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true
+        });
+
+})
+
+bot.callbackQuery('backFromGeorgia', async (ctx) => {
+    const text = `<strong>Отправка из Грузии.</strong>\n\n<b>Посылку</b> можно отправить в Россию, Беларусь, Армению, Казахстан, Молдову, Азербайджан, Индию, Грецию.\n\n<b>Документы</b> можно отправить в Россию, Беларусь, Армению, Казахстан, Киргизию, Молдову, Азербайджан, Узбекистан, Индию, Грецию.\n\n\Батуми, Канделаки, 2 +995555385982`;
+
+    const keyboard = new InlineKeyboard()
+        .text('Документы', 'documentsFromGeorgia').row()
+        .text('Посылка', 'parselsFromGeorgia')
+
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+    });
+});
+
+bot.callbackQuery('backParselsFromGeorgia', async (ctx) => {
+    const text = 'Вы выбрали отправку посылки из Грузии. Выберите тип отправления:';
+
+    const keyboard = new InlineKeyboard()
+        .text('Личное отправление', 'personalFromGeorgia').row()
+        .text('Интернет магазин', 'onlineStoreFromGeorgia').row()
+        .text('Коммерческая отправка', 'commercialFromGeorgia').row()
+        .text('Назад', 'backFromGeorgia');
+
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+    });
+});
+
+bot.hears('Адрес пункта на карте', async (ctx) => {
+    const latitude = 41.64633162638483;  // Замените на свою широту
+    const longitude = 41.64648423085474; // Замените на свою долготу
+
+    try {
+        await ctx.replyWithLocation(latitude, longitude);
+    } catch (error) {
+        console.error('Error sending location:', error);
+    }
+})
+
+bot.hears('Написать менеджеру', async (ctx) => {
+    try {
+        await ctx.reply(`<a href="https://t.me/Cdek_batumi">Кликните, чтобы перейти к чату с менеджером</a>`,
+            { parse_mode: 'HTML', disable_web_page_preview: true }
+        );
+    } catch (error) {
+        console.error('Error sending location:', error);
+    }
+})
+
+
+
+
+bot.on('message', async (ctx) => {
+    const messageText = ctx.message.text.toLowerCase();
+
+    // Проверяем, содержит ли сообщение одну из заданных фраз
+    if (triggerPhrases.some(phrase => messageText.includes(phrase))) {
+        const user = ctx.from;
+        const chatId = ctx.chat.id;
+        const messageId = ctx.message.message_id;
+
+        // Формируем текст для отправки менеджеру
+        const forwardedMessage = `Сообщение от ${user.first_name} (@${user.username}):\n\n${ctx.message.text}`;
+
+        try {
+            // Отправляем сообщение менеджеру
+            await bot.api.sendMessage(managerChatId, forwardedMessage);
+            // Отправляем подтверждение пользователю
+            await ctx.reply('Ваше сообщение отправлено менеджеру.');
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    }
+});
+
+bot.on('message:text', ctx => ctx.reply(`Вы написали: ${ctx.message.text}`));
+// Запускаем бота
+bot.start();
